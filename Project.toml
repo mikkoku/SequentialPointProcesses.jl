@@ -9,6 +9,7 @@ PointPatternStatistics = "937e69f2-8082-11e9-0c81-2b97f322b0e2"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 
 [compat]
+Distributions = "0.24"
 julia = "1"
 
 [extras]
