@@ -3,6 +3,14 @@
 This package defines a few sequential point processes and
 implements ```logpdf``` and ```rand``` for them.
 
+## Installation
+
+```julia
+import Pkg
+Pkg.add("https://github.com/mikkoku/PointPatternStatistics.jl")
+Pkg.add("https://github.com/mikkoku/SequentialPointProcesses.jl")
+```
+
 ## Softcore model
 
 The Softcore model is parametrised by a kernel $f$. The density for the point $y$
