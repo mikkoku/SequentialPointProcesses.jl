@@ -1,14 +1,24 @@
 
 abstract type SequentialPointProcess end
+@doc raw"""
+  Softcore(kernel, kernel_integral=kernel)
+
+Define a Softcore model with kernel.
+
+The kernel is a positive function of distance. Large values indicate repulsion.
+
+The desity for the next point ``x_k`` is
+```math
+f(x_k | x_{1:k-1}) \propto \exp \left(-\sum_{i=1}^{k-1} f(\| x_i - x_k \|)\right).
+```
+
+```kernel_integral``` can be specified to
+use a different kernel for computing the normalization coefficients.
+"""
 struct Softcore{F,F2} <: SequentialPointProcess
   kernel::F
   kernel_integral::F2
 end
-""" Softcore(kernel, kernel_integral=kernel)
-
-Define a Softcore model with kernel. ```kernel_integral``` can be specified to
-use a difference kernel for computing the normalization coefficients.
-"""
 Softcore(f) = Softcore(f, f)
 
 """Uniform()
