@@ -1,4 +1,4 @@
-Base.rand(m::SequentialPointProcess, window, npoints; giveup=-1, returnanyway=false) =
+Base.rand(m::SequentialPointProcess, window, npoints::Integer; giveup=-1, returnanyway=false) =
   rpattern(m, window, npoints, giveup, returnanyway)
 function rpattern(model, window, npoints, giveup=-1, returnanyway=false)
   xy = Vector{NTuple{2,Float64}}(undef, npoints)
