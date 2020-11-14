@@ -1,5 +1,7 @@
 using .CUDA
 
+cuda_available = true
+
 function compute_integral(qx, qy, xs, f::F, nx::NamedTuple{(:nx, :type, :batchsize)}) where F
     integrate_cuda(nx.type, qx, qy, xs, f, nx.batchsize)
 end

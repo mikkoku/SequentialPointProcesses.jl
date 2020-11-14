@@ -23,7 +23,7 @@ using SequentialPointProcesses
 using Distributions
 M1(theta) = Softcore(d -> (2.3/d)^(theta))
 pp = rand(M1(4.5), (x=(0,10), y=(0,10)), 10)
-logpdf(M1(4.5), pp, (nx=100,))
+logpdf(M1(4.5), pp, 100)
 ```
 
 ## Other models
@@ -37,12 +37,22 @@ The method for ```rand``` uses simple rejection algorithm with uniform proposals
 and thus may fail if the density is generally low.
 
 The method for ```logpdf``` uses grid based numerical integration and the grid
-size has to be specified with ```(nx=N,)```, where N is the
-number of interation points in the first dimension.
+size has to be specified ```logpdf(model, pointpattern, N)``` where `N` is the number
+of integration points in the first dimension.
 
 #### Multithreading
 
-It is possible to use threads by using ```(nx=N, threads=true)``` and CUDA by
-using ```(nx=N, type=T, batchsize=M)```, where type can Float32 or Float64 and M
+It is possible to use threads by using
+```julia
+logpdf(M1(4.5), pp, SequentialPointProcesses.Options(nx=100, parallel=:threads))
+```
+and CUDA by using
+```julia
+using CUDA
+M1cuda(theta::T) where T = Softcore(d -> (2.3/d)^(theta), d -> CUDA.pow((T(2.3)/d), theta))
+logpdf(M1cuda(4.5), pp, SequentialPointProcesses.Options(nx=100, parallel=:cuda))
+logpdf(M1cuda(4.5f0), pp, SequentialPointProcesses.Options(nx=100, parallel=:cuda, cudatype=Float32))
+```
+where `cudatype` can Float32 or Float64 and `cudabatchsize`
 can be increased to decrease the amount of GPU memory required.
 Using CUDA might require specifying a CUDA friendly kernel.

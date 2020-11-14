@@ -1,3 +1,16 @@
+struct Options
+    nx::Int
+    parallel::Union{Bool, Symbol}
+    cudatype::Type
+    cudabatchsize::Int
+end
+function Options(;nx::Int, parallel=false, cudatype::Type=Float64, cudabatchsize::Int=1)
+    if !(parallel in (false, :threads, :cuda))
+        throw(ArgumentError("parallel should be one of false, :threads, :cuda"))
+    end
+    Options(nx, parallel, cudatype, cudabatchsize)
+end
+
 
 # log unnormalized density
 function logfk(x, xbefore, f)
@@ -32,10 +45,22 @@ function compute_integral_y!(Ix, x, xs, f, qy)
   Ix
 end
 
-normconstants(xs, f, window, nx::Int) = normconstants(xs, f, window, (nx=nx,))
-function normconstants(xs, f, window, integrationparameters)
-  qx, qy, w = quadps(window, integrationparameters.nx)
-  I = compute_integral(qx, qy, xs, f, integrationparameters)
+# normconstants(xs, f, window, nx::Int) = normconstants(xs, f, window, (nx=nx,))
+function normconstants(xs, f, window, intpar)
+  qx, qy, w = quadps(window, intpar.nx)
+  if intpar.parallel === false
+    I = compute_integral(qx, qy, xs, f, (nx=intpar.nx,))
+  elseif intpar.parallel === :threads
+    I = compute_integral(qx, qy, xs, f, (nx=intpar.nx, threads=true))
+  elseif intpar.parallel === :cuda
+    if !cuda_available
+      throw(ArgumentError("CUDA not loaded."))
+    end
+    I = compute_integral(qx, qy, xs, f, (nx=intpar.nx, type=intpar.cudatype,
+      batchsize=intpar.cudabatchsize))
+  else
+    throw(ArgumentError("Invalid Options given."))
+  end
   I .*= w
 end
 # Using separate accumulator for each grid line prodives a little better accuracy
