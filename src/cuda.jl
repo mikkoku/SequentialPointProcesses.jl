@@ -1,6 +1,6 @@
 using .CUDA
 
-function compute_integral(qx, qy, xs, f, nx::NamedTuple{(:nx, type:, :batchsize)}) where f
+function compute_integral(qx, qy, xs, f::F, nx::NamedTuple{(:nx, :type, :batchsize)}) where F
     integrate_cuda(nx.type, qx, qy, xs, f, nx.batchsize)
 end
 
