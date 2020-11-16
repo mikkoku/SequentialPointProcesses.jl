@@ -7,8 +7,8 @@ implements ```logpdf``` and ```rand``` for them.
 
 ```julia
 import Pkg
-Pkg.add("https://github.com/mikkoku/PointPatternStatistics.jl")
-Pkg.add("https://github.com/mikkoku/SequentialPointProcesses.jl")
+Pkg.add(url="https://github.com/mikkoku/PointPatternStatistics.jl")
+Pkg.add(url="https://github.com/mikkoku/SequentialPointProcesses.jl")
 ```
 
 ## Softcore model
