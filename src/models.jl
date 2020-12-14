@@ -74,6 +74,17 @@ function normalizedlogdensities(m::Softcore, xy, window, int)
   end
   z
 end
+function normalizedlogdensities(m::OverlappingDiscs, xy, window, int)
+  z = normconstants(m, xy[1:end-1], window, int.nx)
+  for i in eachindex(z)
+    if z[i] == 0.0
+      z[i] = -Inf
+    else
+      z[i] = log(m.theta(countoverlaps(m, xy[i+1], view(xy, 1:i)), i)) - log(z[i])
+    end
+  end
+  z
+end
 function normalizedlogdensities(::Uniform, xy, window, int)
   x1, x2 = window.x
   y1, y2 = window.y
