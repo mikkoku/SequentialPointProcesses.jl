@@ -29,6 +29,20 @@ Large $\theta$ means clustering and $\theta=0$ means hardcore.
 
 ## R code
 
+## First time setup
+
+Install [Julia](https://julialang.org) and the required packages
+
+```{}
+library(JuliaCall)
+julia_setup()
+julia_install_package("https://github.com/mikkoku/PointPatternStatistics.jl")
+julia_install_package("https://github.com/mikkoku/SequentialPointProcesses.jl")
+julia_install_package("Distributions")
+```
+
+## Afterwards
+
 Setup JuliaCall and a wrapper for OverlappingDiscs
 ```{r, warning=FALSE, message=FALSE}
 library(JuliaCall)
