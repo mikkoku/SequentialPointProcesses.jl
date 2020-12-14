@@ -2,6 +2,9 @@
 
 This package defines a few sequential point processes and
 implements ```logpdf``` and ```rand``` for them.
+The models are special cases models proposed in
+
+Penttinen, A., & Ylitalo, A.-K. (2016). Deducing self-interaction in eye movement data using sequential spatial point processes. Spatial Statistics, 17, 1-21. [doi:10.1016/j.spasta.2016.03.005](https://dx.doi.org/10.1016/j.spasta.2016.03.005)
 
 ## Installation
 
