@@ -1,0 +1,207 @@
+---
+title: "Using SequentialPointProcesses.jl in R"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+## Sequential Overlapping Discs
+
+### Definition
+
+A special case of the model proposed by (Penttinen & Ylitalo, 2016).
+
+The first point is uniformly distributed.
+
+The density for the next point $x_{k+1}$ is proportional to
+$$
+f_k(y | x_{1:k}) = \sum_{n=0}^\infty \theta_{n,{k+1}}1(S_k(y, x_{1:k}, R_{1:k}) = n)
+$$
+where
+$S_k$ is the number of overlapping discs where each tree $x_i$ has a corresponding disc of radius $R_i$
+$$
+S_k(y, x_{1:k}) = \sum_{i=1}^k 1(\|y - x_i\| < R_i)
+$$
+Here we assume that $\theta_{0,k} = 1-\theta_k$ and $\theta_{n,k} = \theta_k$ for $n = 1,2,\dots$.
+
+Large $\theta$ means clustering and $\theta=0$ means hardcore.
+
+## R code
+
+Setup JuliaCall and a wrapper for OverlappingDiscs
+```{r, warning=FALSE, message=FALSE}
+library(JuliaCall)
+julia_setup()
+julia_library("SequentialPointProcesses")
+julia_library("Distributions")
+logpdfOverlappingDiscs <- function(theta, R, ppp, nx) {
+  M <- julia_call("OverlappingDiscs", theta, R)
+  julia_call("logpdf", M, ppp, as.integer(nx))
+}
+randOverlappingDiscs <- function(theta, R, window, np) {
+  M <- julia_call("OverlappingDiscs", theta, R)
+  julia_call("rand", M, window, np)
+}
+```
+```{r, warning=FALSE, message=FALSE}
+library(spatstat)
+library(ggplot2)
+library(tidyverse)
+library(rgl)
+```
+
+```{r}
+layout(t(1:2))
+sim <- randOverlappingDiscs(1.0, 1, square(10), 10L)
+plot(sim, main="theta=1")
+sim <- randOverlappingDiscs(0.0, 1, square(10), 10L)
+plot(sim, main="theta=0")
+```
+
+## Example of a parameteric model for R using the spruces data
+
+Arrange the spruces data according to tree size
+```{r}
+sp <- spruces
+sp <- sp[order(marks(sp), decreasing = TRUE)]
+plot(sp)
+```
+```{r}
+plot(pcf(sp))
+```
+
+
+
+## Model 1 - simple parametric model with varying R
+
+$\theta_k = \theta$
+
+$R_i = \alpha m_i$
+```{r}
+logpdfM1 <- function(param, pp, nx) {
+  alpha <- param["alpha"]
+  beta <- param["beta"]
+  R <- alpha * marks(pp)
+  theta <- beta + 0 * marks(pp)
+  if(any(R < 0) || any(theta < 0) || any(theta > 1)) return(-Inf)
+  logpdfOverlappingDiscs(theta, R, pp, nx)
+}
+randM1 <- function(param, pp) {
+  alpha <- param["alpha"]
+  beta <- param["beta"]
+  R <- alpha * marks(pp)
+  theta <- beta + 0 * marks(pp)
+  if(any(R < 0) || any(theta < 0) || any(theta > 1)) return(-Inf)
+
+  sim <- randOverlappingDiscs(theta, R, Window(pp), npoints(pp))
+  marks(sim) <- marks(pp)
+  sim
+}
+```
+
+Grid search is used because the logpdf is discontinuous w.r.t. $\alpha$ (R).
+
+```{r, message=FALSE}
+grid <- expand.grid(alpha=seq(0.1, 20.0, length=100), beta=seq(0.01, 0.99, length=100))
+for(i in 1:nrow(grid)) {
+  grid$logpdf[i] <- logpdfM1(unlist(grid[i,]), sp, 100)
+}
+open3d(useNULL=TRUE)
+plot3d(grid)
+rglwidget()
+```
+```{r}
+grid[which.max(grid$logpdf),]
+```
+
+```{r}
+sim <- randM1(c(alpha=6.3, beta=0.1), sp)
+plot(sim)
+plot(pcf(sim))
+```
+
+#### Approximation error caused by grid integration
+```{r}
+grid2 <- expand.grid(alpha=seq(0.1, 20, length=1000), beta=0.1)
+for(i in 1:nrow(grid2)) {
+  grid2$logpdf[i] <- logpdfM1(unlist(grid2[i,]), sp, 100)
+  grid2$logpdf2[i] <- logpdfM1(unlist(grid2[i,]), sp, 1000)
+}
+layout(t(1:2))
+plot(logpdf ~ alpha, grid2, type="l")
+plot(logpdf2 ~ alpha, grid2, type="l")
+```
+
+
+## Model 2
+
+Assume that $\theta_k$ and $R_i$ are smooth functions of $k$ and $i$ respectively.
+
+`loess` is quite straightforward smoothing not recommended for anyone.
+
+```{r}
+loessinterp <- function(x, n) {
+  # Little data, lot of warnings
+  m <- suppressWarnings(loess(x ~ i, data.frame(x=x, i=seq(1, n, length=length(x)))))
+  predict(m, data.frame(i=1:n))
+}
+interpparam <- function(param, pp) {
+  theta <- param[startsWith(names(param), "theta")]
+  theta <- loessinterp(theta, npoints(pp))
+  R <- param[startsWith(names(param), "R")]
+  R <- loessinterp(R, npoints(pp))
+  list(theta=theta, R=R)
+}
+
+logpdfM2 <- function(param, pp, nx) {
+  param <- interpparam(param, pp)
+  theta <- param$theta
+  R <- param$R
+
+  if(any(R < 0) || any(theta < 0) || any(theta > 1)) return(-Inf)
+  logpdfOverlappingDiscs(theta, R, pp, nx)
+}
+randM2 <- function(param, pp) {
+  param <- interpparam(param, pp)
+  theta <- param$theta
+  R <- param$R
+
+  if(any(R < 0) || any(theta < 0) || any(theta > 1)) stop("Invalid parameters")
+  sim <- randOverlappingDiscs(theta, R, Window(pp), npoints(pp))
+  marks(sim) <- marks(pp)
+  sim
+}
+
+```
+
+In this example these is first a cluster and then later points have inhibition.
+```{r}
+pp <- randM2(c(R=c(5, 5, 5), theta=c(1, 0.9, 0.5, 0.1, 0.0)), sp)
+layout(matrix(1:6, nrow=2, byrow=TRUE))
+plot(pp[1:40], use.marks=FALSE)
+plot(pp[1:50], use.marks=FALSE)
+plot(pp[1:60], use.marks=FALSE)
+plot(pp[1:70], use.marks=FALSE)
+plot(pp[1:100], use.marks=FALSE)
+plot(pp, use.marks=FALSE)
+```
+
+Maximizing the likelihood using Nelder-Mead will need good initial guess.
+```{r}
+o <- optim(c(R=rep(5, 5), theta=rep(0.5, 5)), logpdfM2, pp=pp, nx=100, control=list(fnscale=-1, maxit=10000))
+```
+Obviously loess smoothing is not a good model, but the thetas are recovered quite well.
+```{r}
+layout(t(1:2))
+plot(interpparam(o$par, pp)$theta, type="l")
+plot(interpparam(o$par, pp)$R, type="l", ylim=c(0, 6))
+```
+
+```{r}
+sim <- randM2(o$par, sp)
+plot(sim, use.marks=FALSE)
+plot(pcf(sim))
+```
+
+
