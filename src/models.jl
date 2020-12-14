@@ -20,6 +20,32 @@ struct Softcore{F,F2} <: SequentialPointProcess
   kernel_integral::F2
 end
 Softcore(f) = Softcore(f, f)
+"""
+  OverlappingDiscs(theta, R)
+
+  Define a sequential model where the probability of the next point depends on
+  how many discs overlap that location. Each point generates a disc `R(i)` and the
+  radius of the disc may depend on the id of the point. The
+  parameter `theta(noverlaps, k)` is the density corresponding the number
+  of overlaps and the id of the next point.
+
+  theta and R may be specified as numbers, vectors of length equal to the
+  number of points.
+"""
+struct OverlappingDiscs{F, F2} <: SequentialPointProcess
+  theta::F
+  R::F2
+  function OverlappingDiscs(theta, R)
+    f, f2 = totheta(theta), to1fun(R)
+    new{typeof(f), typeof(f2)}(f, f2)
+  end
+end
+to1fun(x::AbstractVector{<:Real}) = k -> x[k]
+to1fun(x::Real) = k -> x
+to1fun(x) = x
+totheta(x::AbstractVector{<:Real}) = (noverlaps, k) -> ifelse(noverlaps==0, 1-x[k], x[k])
+totheta(x::Real) = (noverlaps, k) -> ifelse(noverlaps==0, 1-x, x)
+totheta(x) = x
 
 """Uniform()
 

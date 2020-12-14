@@ -25,6 +25,11 @@ function acceptpoint(m::Softcore, xyprop, xyold)
   p = exp(logfk(xyprop, xyold, m.kernel))
   return rand() <= p
 end
+function acceptpoint(m::OverlappingDiscs, xyprop, xyold)
+  k = length(xyold) + 1
+  p = m.theta(countoverlaps(m, xyprop, xyold), k) / maximum(n -> m.theta(n,k), 0:length(xyold))
+  return rand() <= p
+end
 function acceptpoint(::Uniform, xyprop, xyold)
   true
 end
