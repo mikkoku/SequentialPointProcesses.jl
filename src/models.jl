@@ -63,24 +63,13 @@ struct Mixture{T1, T2} <: SequentialPointProcess
   theta::Float64
 end
 
-function normalizedlogdensities(m::Softcore, xy, window, int)
-  z = normconstants(xy[1:end-1], m.kernel_integral, window, int)
+function normalizedlogdensities(m, xy, window, int)
+  z = normconstants(m, xy[1:end-1], window, int)
   for i in eachindex(z)
     if z[i] == 0.0
       z[i] = -Inf
     else
-      z[i] = logfk(xy[i+1], view(xy, 1:i), m.kernel) - log(z[i])
-    end
-  end
-  z
-end
-function normalizedlogdensities(m::OverlappingDiscs, xy, window, int)
-  z = normconstants(m, xy[1:end-1], window, int.nx)
-  for i in eachindex(z)
-    if z[i] == 0.0
-      z[i] = -Inf
-    else
-      z[i] = log(m.theta(countoverlaps(m, xy[i+1], view(xy, 1:i)), i)) - log(z[i])
+      z[i] = logfk(m, xy[i+1], view(xy, 1:i)) - log(z[i])
     end
   end
   z

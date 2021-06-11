@@ -1,10 +1,10 @@
 module SequentialPointProcesses
-import PointPatternStatistics.PointPattern
+import PointPatternStatistics: PointPattern
 import Distributions
 using Requires
 
-include("logfk.jl")
 include("models.jl")
+include("logfk.jl")
 include("rand.jl")
 include("overlappingdiscs.jl")
 

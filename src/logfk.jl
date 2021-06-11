@@ -13,9 +13,10 @@ end
 
 
 # log unnormalized density
-function logfk(x, xbefore, f)
+fk(m::Softcore, x, xbefore) = exp(logfk(m, x, xbefore))
+function logfk(m::Softcore, x, xbefore)
   d((x1, y1), (x2, y2)) = sqrt((x1-x2)^2 + (y1-y2)^2)
-  -sum((f(d(x,y)) for y in xbefore))
+  -sum((m.kernel(d(x,y)) for y in xbefore))
 end
 
 function quadps(window, nx)
@@ -31,14 +32,14 @@ function quadps(x1, x2, n)
   LinRange(x1+s, x2-s, n)
 end
 
-function compute_integral_y!(Ix, x, xs, f, qy)
+function compute_integral_y!(m::Softcore, Ix, x, xs, qy)
   fill!(Ix, 0.0)
   for y in qy
     s1 = 0.0 #Base.TwicePrecision(0.0)
     for i in eachindex(xs)
       @inbounds x2, y2 = xs[i]
       d = sqrt((x-x2)^2 + (y-y2)^2)
-      s1 += f(d)
+      s1 += m.kernel_integral(d)
       @inbounds Ix[i] += exp(-Float64(s1))
     end
   end
@@ -46,17 +47,18 @@ function compute_integral_y!(Ix, x, xs, f, qy)
 end
 
 # normconstants(xs, f, window, nx::Int) = normconstants(xs, f, window, (nx=nx,))
-function normconstants(xs, f, window, intpar)
+function normconstants(m::Softcore, xs, window, intpar)
+  intpar.nx == 0 && return ones(length(xs))
   qx, qy, w = quadps(window, intpar.nx)
   if intpar.parallel === false
-    I = compute_integral(qx, qy, xs, f, (nx=intpar.nx,))
+    I = compute_integral(m, qx, qy, xs, (nx=intpar.nx,))
   elseif intpar.parallel === :threads
-    I = compute_integral(qx, qy, xs, f, (nx=intpar.nx, threads=true))
+    I = compute_integral(m, qx, qy, xs, (nx=intpar.nx, threads=true))
   elseif intpar.parallel === :cuda
     if !cuda_available
       throw(ArgumentError("CUDA not loaded."))
     end
-    I = compute_integral(qx, qy, xs, f, (nx=intpar.nx, type=intpar.cudatype,
+    I = compute_integral(m, qx, qy, xs, (nx=intpar.nx, type=intpar.cudatype,
       batchsize=intpar.cudabatchsize))
   else
     throw(ArgumentError("Invalid Options given."))
@@ -65,21 +67,21 @@ function normconstants(xs, f, window, intpar)
 end
 # Using separate accumulator for each grid line prodives a little better accuracy
 # at the cost of doubling the memory requirement.
-function compute_integral(qx, qy, xs, f::F, ::NamedTuple{(:nx,)}) where F
+function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx,)})
   I = zeros(length(xs))
   Ix = similar(I)
   for x in qx
-    compute_integral_y!(Ix, x, xs, f, qy)
+    compute_integral_y!(m, Ix, x, xs, qy)
     I .+= Ix
   end
   I
 end
 
-function compute_integral(qx, qy, xs, f::F, ::NamedTuple{(:nx, :threads)}) where F
+function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx, :threads)})
   I = [zeros(length(xs)) for _ in 1:Threads.nthreads()]
   Ix = [similar(I[1]) for _ in 1:Threads.nthreads()]
   Threads.@threads for x in qx
-    compute_integral_y!(Ix[Threads.threadid()], x, xs, f, qy)
+    compute_integral_y!(m, Ix[Threads.threadid()], x, xs, qy)
     I[Threads.threadid()] .+= Ix[Threads.threadid()]
   end
   sum(I)

@@ -22,7 +22,7 @@ function rpattern(model, window, npoints, giveup=-1, returnanyway=false)
   PointPattern(xy, window)
 end
 function acceptpoint(m::Softcore, xyprop, xyold)
-  p = exp(logfk(xyprop, xyold, m.kernel))
+  p = fk(m, xyprop, xyold)
   return rand() <= p
 end
 function acceptpoint(m::OverlappingDiscs, xyprop, xyold)
@@ -40,15 +40,16 @@ function randpoint(m::Mixture, pattern, window, giveup)
     randpoint(m.second, pattern, window, giveup)
   end
 end
-function randpoint(model, pattern, window, giveup=-1)
+function randp(window)
   randcoord(x) = window[x][1] + (window[x][2]-window[x][1])*rand()
   randx() = randcoord(:x)
   randy() = randcoord(:y)
-  randp() = randx(), randy()
-
+  randx(), randy()
+end
+function randpoint(model, pattern, window, giveup=-1)
   tries = 0
   while true
-    xyprop = randp()
+    xyprop = randp(window)
     if acceptpoint(model, xyprop, pattern)
       return xyprop
     end

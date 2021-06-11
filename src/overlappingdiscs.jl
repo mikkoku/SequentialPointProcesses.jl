@@ -1,3 +1,7 @@
+logfk(m::OverlappingDiscs, p, xbefore) = log(fk(m, p, xbefore))
+function fk(m::OverlappingDiscs, p, xbefore)
+  m.theta(countoverlaps(m, p, xbefore), length(xbefore))
+end
 function countoverlaps(m::OverlappingDiscs, p, xbefore)
   k = 0
   x, y = p
@@ -48,9 +52,15 @@ function compute_integral(m::OverlappingDiscs, data, scale, nx, ny)
   I
 end
 
-function normconstants(m::OverlappingDiscs, xs, window, nx::Int)
+function discretization(window, nx::Int)
   (x1,x2), (y1,y2) = window.x, window.y
-  ny = ceil(Int, nx*(y2-y1)/(x2-x1))
+  ny = round(Int, nx*(y2-y1)/(x2-x1))
   scale = nx/(x2-x1)
-  compute_integral(m, xs, scale, nx, ny)
+  scale, x1, y1, nx, ny
+end
+
+function normconstants(m::OverlappingDiscs, xs, window, int)
+  int.parallel === false || throw(ArgumentError("Model doesn't support parallization"))
+  nx = int.nx
+  compute_integral(m, xs, discretization(window, nx)...)
 end
