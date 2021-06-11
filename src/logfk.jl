@@ -16,7 +16,7 @@ end
 fk(m::Softcore, x, xbefore) = exp(logfk(m, x, xbefore))
 function logfk(m::Softcore, x, xbefore)
   d((x1, y1), (x2, y2)) = sqrt((x1-x2)^2 + (y1-y2)^2)
-  -sum((m.kernel(d(x,y)) for y in xbefore))
+  -sum((m.kernel(d(x,y), i) for (i, y) in enumerate(xbefore)))
 end
 
 function quadps(window, nx)
@@ -39,7 +39,7 @@ function compute_integral_y!(m::Softcore, Ix, x, xs, qy)
     for i in eachindex(xs)
       @inbounds x2, y2 = xs[i]
       d = sqrt((x-x2)^2 + (y-y2)^2)
-      s1 += m.kernel_integral(d)
+      s1 += m.kernel_integral(d, i)
       @inbounds Ix[i] += exp(-Float64(s1))
     end
   end
@@ -47,7 +47,8 @@ function compute_integral_y!(m::Softcore, Ix, x, xs, qy)
 end
 
 # normconstants(xs, f, window, nx::Int) = normconstants(xs, f, window, (nx=nx,))
-function normconstants(m::Softcore, xs, window, intpar)
+function normconstants(m::Union{Softcore,Softcore2,Softcore2v}, xs, window, intpar)
+# function normconstants(m::Softcore, xs, window, intpar)
   intpar.nx == 0 && return ones(length(xs))
   qx, qy, w = quadps(window, intpar.nx)
   if intpar.parallel === false
@@ -67,7 +68,8 @@ function normconstants(m::Softcore, xs, window, intpar)
 end
 # Using separate accumulator for each grid line prodives a little better accuracy
 # at the cost of doubling the memory requirement.
-function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx,)})
+function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, ::NamedTuple{(:nx,)})
+# function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx,)})
   I = zeros(length(xs))
   Ix = similar(I)
   for x in qx
@@ -77,7 +79,8 @@ function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx,)})
   I
 end
 
-function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx, :threads)})
+function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, ::NamedTuple{(:nx, :threads)})
+# function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx, :threads)})
   I = [zeros(length(xs)) for _ in 1:Threads.nthreads()]
   Ix = [similar(I[1]) for _ in 1:Threads.nthreads()]
   Threads.@threads for x in qx

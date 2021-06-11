@@ -18,8 +18,46 @@ use a different kernel for computing the normalization coefficients.
 struct Softcore{F,F2} <: SequentialPointProcess
   kernel::F
   kernel_integral::F2
+  function Softcore(f, fint, hastime::Bool)
+    f2, f2int =
+    if hastime
+      f, fint
+    else
+      (d, i) -> f(d), (d, i) -> fint(d)
+    end
+    new{typeof(f2), typeof(f2int)}(f2, f2int)
+  end
 end
-Softcore(f) = Softcore(f, f)
+function Softcore(f, hastime::Bool=false)
+  Softcore(f, f, hastime)
+end
+function Softcore(f, fint)
+  Softcore(f, fint, false)
+end
+
+struct Hardcore{THETA, R} <: SequentialPointProcess
+  theta::THETA
+  R::R
+end
+
+struct Softcore2{THETA, PSI, R, PHI, OP} <: SequentialPointProcess
+  theta::THETA #k -> c + d*m[k]
+  psi::PSI #(S, R) = S >= 1
+  R::R #(k) = a + b*m[k]
+  phi::PHI #(d, R) = d <= R
+  op::OP # = +
+end
+
+struct Softcore2v{THETA, PSI, R, PHI, OP} <: SequentialPointProcess
+  theta::Vector{THETA} #k -> c + d*m[k]
+  psi::PSI #(S, R) = S >= 1
+  R::Vector{R} #(k) = a + b*m[k]
+  phi::PHI #(d, R) = d <= R
+  op::OP # = +
+end
+
+Softcore2(m::Softcore2v) = Softcore2(k -> m.theta[k], m.psi, k -> m.R[k], m.phi, m.op)
+
 """
   OverlappingDiscs(theta, R)
 
@@ -46,6 +84,11 @@ to1fun(x) = x
 totheta(x::AbstractVector{<:Real}) = (noverlaps, k) -> ifelse(noverlaps==0, 1-x[k], x[k])
 totheta(x::Real) = (noverlaps, k) -> ifelse(noverlaps==0, 1-x, x)
 totheta(x) = x
+
+struct SequentialTreeModel{FR, FI} <: SequentialPointProcess
+  R::FR
+  interaction::FI
+end
 
 """Uniform()
 
