@@ -1,5 +1,18 @@
-logfk(m::Hardcore, p, xbefore) = log(fk(m, p, xbefore))
-function fk(m::Hardcore, p, xbefore)
+HardcoreModels = Union{Hardcore1, Hardcore2}
+logfk(m::HardcoreModels, p, xbefore) = log(fk(m, p, xbefore))
+function fk(m::Hardcore1, p, xbefore)
+  s = 0.0
+  x, y = p
+  n = length(xbefore)
+  for (i, (x1, y1)) in enumerate(xbefore)
+    d2 = (x1-x)^2 + (y1-y)^2
+    if d2 <= (m.R(n+1))^2
+      return m.theta(n+1)
+    end
+  end
+  1-m.theta(n+1)
+end
+function fk(m::Hardcore2, p, xbefore)
   s = 0.0
   x, y = p
   n = length(xbefore)
@@ -42,7 +55,7 @@ end
 
 
 
-function compute_integral2(m::Hardcore, data, window, nx)
+function compute_integral2(m::HardcoreModels, data, window, nx)
   (x1,x2), (y1,y2) = window.x, window.y
   ny = round(Int, nx*(y2-y1)/(x2-x1))
   scale = nx/(x2-x1)
@@ -63,7 +76,7 @@ function compute1hardcore(image, x, y, R, tmp)
   end
 end
 
-function compute_integral2(m::Hardcore, data, scale, x0, y0, nx, ny)
+function compute_integral2(m::Hardcore2, data, scale, x0, y0, nx, ny)
   nx == 0 && return zeros(length(data))
   cellsize = 1/scale^2
   image = zeros(Int8, nx, ny)
@@ -89,7 +102,30 @@ function compute_integral2(m::Hardcore, data, scale, x0, y0, nx, ny)
   I
 end
 
-function normconstants(m::Hardcore, xs, window, int)
+function compute_integral2(m::Hardcore1, data, scale, x0, y0, nx, ny)
+  nx == 0 && return zeros(length(data))
+  cellsize = 1/scale^2
+  image = zeros(Int8, nx, ny)
+  I = Vector{Float64}(undef, length(data))
+  tmp = Vector{Float64}(undef, ny)
+  counter = 0
+  l = length(image)
+  for n in 1:(length(data))
+    x, y = data[n]
+    R = m.R(n+1)
+    if R*scale > sum(size(image)) || counter == l
+      counter = l
+    else
+      counter += compute1hardcore(image, (x-x0)*scale, (y-y0)*scale,
+        R*scale, tmp)
+    end
+    theta = m.theta(n+1)
+    I[n] = counter*cellsize*theta + (l-counter)*cellsize*(1-theta)
+  end
+  I
+end
+
+function normconstants(m::HardcoreModels, xs, window, int)
   int.parallel === false || throw(ArgumentError("Hardcore model doesn't support parallization"))
 
   compute_integral2(m, xs, window, int.nx)

@@ -19,7 +19,8 @@ Distributions.logpdf(model::SequentialPointProcess, pp::PointPattern, int::Optio
     logdens(model, extractlocations(pp), pp.window, int)
 
 export Softcore,Mixture,Uniform, OverlappingDiscs,
-    SequentialTreeModel, Softcore2, Softcore2v, Hardcore
+    SequentialTreeModel, Softcore2, Softcore2v,
+    Hardcore, Hardcore1, Hardcore2
 
 cuda_available = false
 loopvectorization_available = false

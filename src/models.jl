@@ -35,10 +35,15 @@ function Softcore(f, fint)
   Softcore(f, fint, false)
 end
 
-struct Hardcore{THETA, R} <: SequentialPointProcess
+struct Hardcore2{THETA, R} <: SequentialPointProcess
   theta::THETA
   R::R
 end
+struct Hardcore1{THETA, R} <: SequentialPointProcess
+  theta::THETA
+  R::R
+end
+Hardcore = Hardcore2
 
 struct Softcore2{THETA, PSI, R, PHI, OP} <: SequentialPointProcess
   theta::THETA #k -> c + d*m[k]
