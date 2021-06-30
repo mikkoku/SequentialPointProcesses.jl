@@ -43,7 +43,8 @@ struct Hardcore1{THETA, R} <: SequentialPointProcess
   theta::THETA
   R::R
 end
-Hardcore = Hardcore2
+Hardcore(theta::Number, R::Number) = Hardcore1(k -> theta, i -> R)
+Hardcore(theta, R) = Hardcore2(theta, R)
 
 struct Softcore2{THETA, PSI, R, PHI, OP} <: SequentialPointProcess
   theta::THETA #k -> c + d*m[k]

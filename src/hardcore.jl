@@ -6,7 +6,7 @@ function fk(m::Hardcore1, p, xbefore)
   n = length(xbefore)
   for (i, (x1, y1)) in enumerate(xbefore)
     d2 = (x1-x)^2 + (y1-y)^2
-    if d2 <= (m.R(n+1))^2
+    if d2 <= (m.R(i))^2
       return m.theta(n+1)
     end
   end
@@ -112,7 +112,7 @@ function compute_integral2(m::Hardcore1, data, scale, x0, y0, nx, ny)
   l = length(image)
   for n in 1:(length(data))
     x, y = data[n]
-    R = m.R(n+1)
+    R = m.R(n)
     if R*scale > sum(size(image)) || counter == l
       counter = l
     else
