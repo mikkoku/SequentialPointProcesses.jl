@@ -12,6 +12,10 @@ function fk(m::Hardcore1, p, xbefore)
   end
   1-m.theta(n+1)
 end
+function maximumfk(m::HardcoreModels, n)
+  t = m.theta(n)
+  max(t, 1-t)
+end
 function fk(m::Hardcore2, p, xbefore)
   s = 0.0
   x, y = p

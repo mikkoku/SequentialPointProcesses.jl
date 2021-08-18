@@ -25,6 +25,12 @@ function acceptpoint(m::Softcore, xyprop, xyold)
   p = fk(m, xyprop, xyold)
   return rand() <= p
 end
+maximumfk(_, n) = 1.0
+function acceptpoint(m::HardcoreModels, xyprop, xyold)
+  p = fk(m, xyprop, xyold)/maximumfk(m, length(xyold) + 1)
+  @assert p <= 1.0
+  return rand() <= p
+end
 function acceptpoint(m::OverlappingDiscs, xyprop, xyold)
   k = length(xyold) + 1
   p = m.theta(countoverlaps(m, xyprop, xyold), k) / maximum(n -> m.theta(n,k), 0:length(xyold))

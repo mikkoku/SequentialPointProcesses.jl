@@ -6,11 +6,11 @@ using Requires
 
 include("models.jl")
 include("logfk.jl")
-include("rand.jl")
 include("overlappingdiscs.jl")
 include("sequentialtreemodel.jl")
 include("softcore2.jl")
 include("hardcore.jl")
+include("rand.jl")
 
 extractlocations(pp) = [(x,y) for (x,y) in pp.data]
 Distributions.logpdf(model::SequentialPointProcess, pp::PointPattern, int::Integer) =
