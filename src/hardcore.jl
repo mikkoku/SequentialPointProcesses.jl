@@ -77,9 +77,6 @@ mutable struct IntArrayIntegral{T}
   IntArrayIntegral(maxwidth::Number) = IntArrayIntegral(Int8, maxwidth)
 end
 
-function compute_integral2(m::HardcoreModels, data, window, nx)
-  (x1,x2), (y1,y2) = window.x, window.y
-
 function compute_integral2(m::HardcoreModels, data, window, int)
   (x1,x2), (y1,y2) = window.x, window.y
   w = int.maxwidth
@@ -94,7 +91,6 @@ function compute_integral2(m::HardcoreModels, data, window, int)
   I
 end
 
-end
 
 function compute1hardcore(image, x, dx, y, dy, R, tmp)
   mapcircle!(image, x, dx, y, dy, R, tmp, 0) do A, x0, x1, gy
