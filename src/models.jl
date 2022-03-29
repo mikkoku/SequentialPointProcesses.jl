@@ -113,8 +113,44 @@ struct Mixture{T1, T2} <: SequentialPointProcess
   theta::Float64
 end
 
+function profilelikelihoodR(mR::Hardcore1, xy, window, int)
+  A = PointPatternStatistics.area(window)
+  I0 = compute_integral2(mR, @view(xy[1:end-1]), window, int)
+  @. I0 = min(I0, A) # due to round off the integral can be larger than A
+  I = copy(I0) # Make sure that I is not a temporary copy
+  fk_bools = map(eachindex(I)) do i
+    fk_bool(mR, xy[i+1], view(xy, 1:i))
+  end
+
+  m -> begin
+    l = 0.0
+    try
+      for i in eachindex(I)
+        a = I[i]
+        theta = m.theta(i+1)
+        z = a*theta + (A-a)*(1-theta)
+        if z == 0.0
+          return -Inf
+        else
+          x = if fk_bools[i]
+            theta
+          else
+            1-theta
+          end
+          # l += logfk(m, xy[i+1], view(xy, 1:i)) - log(z)
+          l += log(x/z)
+        end
+      end
+    catch
+      println(m)
+      rethrow()
+    end
+    l
+  end
+end
+
 function normalizedlogdensities(m, xy, window, int)
-  z = normconstants(m, xy[1:end-1], window, int)
+  z = normconstants(m, @view(xy[1:end-1]), window, int)
   for i in eachindex(z)
     if z[i] == 0.0
       z[i] = -Inf
@@ -124,6 +160,7 @@ function normalizedlogdensities(m, xy, window, int)
   end
   z
 end
+""" Log normalized density """
 function normalizedlogdensities(::Uniform, xy, window, int)
   x1, x2 = window.x
   y1, y2 = window.y
