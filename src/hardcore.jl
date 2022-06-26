@@ -1,4 +1,3 @@
-HardcoreModels = Union{Hardcore1, Hardcore2}
 logfk(m::HardcoreModels, p, xbefore) = log(fk(m, p, xbefore))
 function fk_bool(m::Hardcore1, p, xbefore)
   x, y = p
@@ -10,7 +9,7 @@ function fk_bool(m::Hardcore1, p, xbefore)
   end
   false
 end
-function fk(m::Hardcore1, p, xbefore)
+function fk(m::HardcoreModels, p, xbefore)
   n = length(xbefore)
   theta = m.theta(n+1)
   if fk_bool(m, p, xbefore)
@@ -23,17 +22,16 @@ function maximumfk(m::HardcoreModels, n)
   t = m.theta(n)
   max(t, 1-t)
 end
-function fk(m::Hardcore2, p, xbefore)
-  s = 0.0
+function fk_bool(m::Hardcore2, p, xbefore)
   x, y = p
   n = length(xbefore)
   for (i, (x1, y1)) in enumerate(xbefore)
     d2 = (x1-x)^2 + (y1-y)^2
     if d2 <= (m.R(n+1, i))^2
-      return m.theta(n+1)
+      return true
     end
   end
-  1-m.theta(n+1)
+  false
 end
 
 function mapcircle!(f, image, x, dx, y, dy, R, temp, init=0)
@@ -128,9 +126,13 @@ function compute_integral2(m::Hardcore2, data, x0, dx, y0, dy, (image, I, tmp))
 end
 
 function compute_integral2(m::HardcoreModels, data, x0, dx, y0, dy, nx, ny, int::IntArrayIntegral{T}) where T
-  (image, I, tmp) = something(int.data,
+  (image, I, tmp) = if !isnothing(int.data) 
+    int.data
+  else
     (Matrix{T}(undef, nx, ny), 
-    Vector{Float64}(undef, length(data)), Vector{Float64}(undef, ny)))
+    Vector{Float64}(undef, length(data)), 
+    Vector{Float64}(undef, ny))
+  end
 
   if size(image) != (nx, ny)
     image = Matrix{T}(undef, nx, ny)

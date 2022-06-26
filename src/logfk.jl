@@ -1,14 +1,21 @@
-struct Options
-    nx::Int
-    parallel::Union{Bool, Symbol}
-    cudatype::Type
-    cudabatchsize::Int
+struct Grid
+  maxwidth::Float64
 end
-function Options(;nx::Int, parallel=false, cudatype::Type=Float64, cudabatchsize::Int=1)
-    if !(parallel in (false, :threads, :cuda))
-        throw(ArgumentError("parallel should be one of false, :threads, :cuda"))
+struct GridThreads
+  maxwidth::Float64
+  num_threads::Int
     end
-    Options(nx, parallel, cudatype, cudabatchsize)
+GridThreads(maxwidth) = GridThreads(maxwidth, Threads.nthreads())
+struct GridPolyester
+  maxwidth::Float64
+  num_threads::Int
+end
+struct GridCUDA{T}
+  maxwidth::Float64
+  batchsize::Int
+  num_threads::Tuple{Int,Int}
+  verbose::Bool
+  GridCUDA(T, maxwidth, batchsize=1, num_threads=(256,1), verbose=false) = new{T}(float(maxwidth), batchsize, num_threads, verbose)
 end
 
 
@@ -19,9 +26,11 @@ function logfk(m::Softcore, x, xbefore)
   -sum((m.kernel(d(x,y), i) for (i, y) in enumerate(xbefore)))
 end
 
-function quadps(window, nx)
+function quadps(window, int)
   (x1,x2), (y1,y2) = window.x, window.y
-  ny = ceil(Int, nx*(y2-y1)/(x2-x1))
+  w = int.maxwidth
+  nx = ceil(Int, (x2-x1)/w)
+  ny = ceil(Int, (y2-y1)/w)
   qx = quadps(x1, x2, nx)
   qy = quadps(y1, y2, ny)
 
@@ -35,7 +44,7 @@ end
 function compute_integral_y!(m::Softcore, Ix, x, xs, qy)
   fill!(Ix, 0.0)
   for y in qy
-    s1 = 0.0 #Base.TwicePrecision(0.0)
+    s1 = 0.0
     for i in eachindex(xs)
       @inbounds x2, y2 = xs[i]
       d = sqrt((x-x2)^2 + (y-y2)^2)
@@ -45,30 +54,21 @@ function compute_integral_y!(m::Softcore, Ix, x, xs, qy)
   end
   Ix
 end
-
-# normconstants(xs, f, window, nx::Int) = normconstants(xs, f, window, (nx=nx,))
-function normconstants(m::Union{Softcore,Softcore2,Softcore2v}, xs, window, intpar)
-# function normconstants(m::Softcore, xs, window, intpar)
-  intpar.nx == 0 && return ones(length(xs))
-  qx, qy, w = quadps(window, intpar.nx)
-  if intpar.parallel === false
-    I = compute_integral(m, qx, qy, xs, (nx=intpar.nx,))
-  elseif intpar.parallel === :threads
-    I = compute_integral(m, qx, qy, xs, (nx=intpar.nx, threads=true))
-  elseif intpar.parallel === :cuda
+function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, intpar::GridCUDA)
     if !cuda_available
-      throw(ArgumentError("CUDA not loaded."))
+    error("CUDA not loaded.")
     end
-    I = compute_integral(m, qx, qy, xs, (nx=intpar.nx, type=intpar.cudatype,
-      batchsize=intpar.cudabatchsize))
-  else
-    throw(ArgumentError("Invalid Options given."))
+  compute_integral_cuda(m, qx, qy, xs, intpar)
   end
+
+function normconstants(m::Union{Softcore,Softcore2,Softcore2v}, xs, window, intpar)
+  qx, qy, w = quadps(window, intpar)
+  I = compute_integral(m, qx, qy, xs, intpar)
   I .*= w
 end
 # Using separate accumulator for each grid line prodives a little better accuracy
 # at the cost of doubling the memory requirement.
-function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, ::NamedTuple{(:nx,)})
+function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, ::Grid)
 # function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx,)})
   I = zeros(length(xs))
   Ix = similar(I)
@@ -79,13 +79,26 @@ function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, :
   I
 end
 
-function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, ::NamedTuple{(:nx, :threads)})
+function compute_integral(m::Union{Softcore,Softcore2,Softcore2v}, qx, qy, xs, int::GridThreads)
 # function compute_integral(m::Softcore, qx, qy, xs, ::NamedTuple{(:nx, :threads)})
-  I = [zeros(length(xs)) for _ in 1:Threads.nthreads()]
-  Ix = [similar(I[1]) for _ in 1:Threads.nthreads()]
-  Threads.@threads for x in qx
-    compute_integral_y!(m, Ix[Threads.threadid()], x, xs, qy)
-    I[Threads.threadid()] .+= Ix[Threads.threadid()]
+  nthreads = int.num_threads
+  if nthreads > Threads.nthreads()
+    println("requested number of threads larger than number of available threads")
   end
+  I = [Vector{Float64}(undef, length(xs)) for _ in 1:nthreads]
+  Ix = [similar(I[1]) for _ in 1:nthreads]
+  GC.enable(false)
+  
+
+  Threads.@threads for tid in 1:nthreads
+    fill!(I[tid], 0.0)
+    endidx = fld(length(qx)*tid, nthreads)
+    startidx = fld(length(qx)*(tid-1), nthreads)+1
+    for qi in startidx:endidx
+      compute_integral_y!(m, Ix[tid], qx[qi], xs, qy)
+      I[tid] .+= Ix[tid]
+    end
+  end
+  GC.enable(true)
   sum(I)
 end

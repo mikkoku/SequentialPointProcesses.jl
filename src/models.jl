@@ -113,10 +113,10 @@ struct Mixture{T1, T2} <: SequentialPointProcess
   theta::Float64
 end
 
-function profilelikelihoodR(mR::Hardcore1, xy, window, int)
+function profilelikelihoodR(mR::HardcoreModels, xy, window, int)
   A = PointPatternStatistics.area(window)
   I0 = compute_integral2(mR, @view(xy[1:end-1]), window, int)
-  @. I0 = min(I0, A) # due to round off the integral can be larger than A
+  #@. I0 = min(I0, A) # due to round off the integral can be larger than A
   I = copy(I0) # Make sure that I is not a temporary copy
   fk_bools = map(eachindex(I)) do i
     fk_bool(mR, xy[i+1], view(xy, 1:i))
