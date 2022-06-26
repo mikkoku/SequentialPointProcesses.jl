@@ -46,6 +46,7 @@ end
 Hardcore(theta::Number, R::Number) = Hardcore1(k -> theta, i -> R)
 Hardcore(theta::AbstractVector, R::Number) = Hardcore1(k -> theta[k], i -> R)
 Hardcore(theta, R) = Hardcore2(theta, R)
+const HardcoreModels = Union{Hardcore1, Hardcore2}
 
 struct Softcore2{THETA, PSI, R, PHI, OP} <: SequentialPointProcess
   theta::THETA #k -> c + d*m[k]
